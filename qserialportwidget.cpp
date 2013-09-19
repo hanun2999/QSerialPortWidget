@@ -8,16 +8,15 @@
 #include <QSettings>
 #include <QFile>
 
-QSerialPortWidget::QSerialPortWidget(const QString & path,QWidget *parent) :
+QSerialPortWidget::QSerialPortWidget(QWidget *parent,const QString & path,Visibility v) :
     QWidget(parent),
     ui(new Ui::QSerialPortWidget),
-    vis(Port | BaudRate | DataBits | StopBits | Parity | AutoOpen),
+    p(new QSerialPort(this)),
+    vis(v),
     timer(new QTimer(this)),
     pth(path)
 {
     ui->setupUi(this);
-
-    p = new QSerialPort(this);
 
     connect(ui->butClose,SIGNAL(clicked()),this,SLOT(closeComport()));
     connect(ui->butOpen,SIGNAL(clicked()),this,SLOT(openComport()));
@@ -83,7 +82,6 @@ void QSerialPortWidget::setPort(const Info_t &inf)
     p->setFlowControl(inf.FlowControl);
     p->setStopBits(inf.StopBits);
 }
-
 
 
 void QSerialPortWidget::closeComport()

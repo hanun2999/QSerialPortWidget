@@ -16,10 +16,6 @@ class QSerialPortWidget : public QWidget
     Q_FLAGS(Visibility)
 
 public:
-    explicit QSerialPortWidget(const QString & path = "comSetup.ini" ,  QWidget *parent = 0);
-    ~QSerialPortWidget();
-
-    inline QSerialPort * getPort() const {return p;}
 
     enum Visible  {
         Nothing = 0,
@@ -28,9 +24,19 @@ public:
         DataBits = 0x04,
         StopBits = 0x08,
         Parity = 0x10,
-        AutoOpen = 0x20
+        AutoOpen = 0x20,
+        All = Port | BaudRate | DataBits | StopBits | Parity | AutoOpen
     };
     Q_DECLARE_FLAGS(Visibility, Visible)
+
+
+    explicit QSerialPortWidget( QWidget *parent = 0,
+                                const QString & path = "comSetup.ini", Visibility v = All );
+    ~QSerialPortWidget();
+
+    inline QSerialPort * getPort() const {return p;}
+
+
 
     typedef struct Info_t
     {

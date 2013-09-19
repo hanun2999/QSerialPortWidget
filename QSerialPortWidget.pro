@@ -1,11 +1,6 @@
-
-QT += serialport
+QT += core serialport
 CONFIG += serialport
-
-
-INCLUDEPATH += $$PWD
-DEPENDPATH += $$PWD
-VPATH += $$PWD
+TEMPLATE = lib
 
 HEADERS += \
     qserialportwidget.h
@@ -15,3 +10,7 @@ SOURCES += \
 
 FORMS += \
     qserialportwidget.ui
+
+
+
+
