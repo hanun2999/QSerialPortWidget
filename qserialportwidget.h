@@ -44,11 +44,14 @@ public:
 public slots:
     void openComport(void);
     void closeComport(void);
+    void timeout(void);
 
 private:
     Ui::QSerialPortWidget *ui;
     QSerialPort * p;
     Info_t Info;
+    Visibility vis;
+    QTimer * timer;
 
     void fillCombos(void);
     void SetDefaultValues(void);
@@ -56,7 +59,7 @@ private:
     void fillInfo(Info_t & inf);
     void setPort(const Info_t & inf);
 
-    Visibility vis;
+
 
 
 signals:

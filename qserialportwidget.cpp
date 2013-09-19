@@ -4,11 +4,13 @@
 #include <QtSerialPort/QSerialPortInfo>
 #include <QDebug>
 #include <QTreeWidgetItem>
+#include <QTimer>
 
 QSerialPortWidget::QSerialPortWidget(QWidget *parent) :
     QWidget(parent),
     ui(new Ui::QSerialPortWidget),
-    vis(Port | BaudRate | DataBits | StopBits | Parity | AutoOpen)
+    vis(Port | BaudRate | DataBits | StopBits | Parity | AutoOpen),
+    timer(new QTimer(this))
 {
     ui->setupUi(this);
 
@@ -25,6 +27,8 @@ QSerialPortWidget::QSerialPortWidget(QWidget *parent) :
     SetDefaultValues();
     //if auto click open
 
+    timer->start(100);
+    connect(timer,SIGNAL(timeout()),this,SLOT(timeout()));
 
 
 }
@@ -196,4 +200,25 @@ void QSerialPortWidget::SetDefaultValues()
     ui->comboParity->setCurrentIndex(0);
     ui->comboPort->setCurrentIndex(0);
     ui->comboStopBits->setCurrentIndex(0);
+}
+
+/**
+ * @brief QSerialPortWidget::timeout
+ * autoscanning list of serial ports
+ */
+void QSerialPortWidget::timeout()
+{
+    QList<QSerialPortInfo> list = QSerialPortInfo::availablePorts();
+
+    foreach (QSerialPortInfo info, list) {
+        QString name = info.portName();
+        int i = ui->comboPort->findText(name);
+        if (i == -1)
+        {
+            ui->comboPort->addItem(name);
+        }
+    }
+
+
+
 }
