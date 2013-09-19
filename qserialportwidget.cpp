@@ -24,10 +24,18 @@ QSerialPortWidget::QSerialPortWidget(QWidget *parent) :
 
     fillCombos();
     //load from file
-    SetDefaultValues();
-    //if auto click open
+    if (loadFile(Info))
+    {
+        setWidget(Info);
+        if (Info.autoOpen)
+            openComport();
+    }
+    else
+    {
+        SetDefaultValues();
+    }
 
-    timer->start(100);
+    timer->start(1000);
     connect(timer,SIGNAL(timeout()),this,SLOT(timeout()));
 
 
@@ -74,29 +82,7 @@ void QSerialPortWidget::setPort(const Info_t &inf)
     p->setStopBits(inf.StopBits);
 }
 
-/**
- * @brief QSerialPortWidget::fillInfo
- * fill param structure from gui
- * @param inf
- */
-void QSerialPortWidget::fillInfo(Info_t &inf)
-{
-    bool okk;
 
-    inf.BaudRate = ui->comboBaud->currentText().toInt(&okk);
-    Q_ASSERT(okk);
-    inf.DataBits = (QSerialPort::DataBits)ui->comboDataBits->currentText().toInt(&okk);
-    Q_ASSERT(okk);
-    inf.Parity =  (QSerialPort::Parity)
-            ui->comboParity->itemData(ui->comboParity->currentIndex()).toInt(&okk);
-    Q_ASSERT(okk);
-    inf.Port = ui->comboPort->currentText();
-    inf.StopBits = (QSerialPort::StopBits)
-            ui->comboStopBits->itemData(ui->comboStopBits->currentIndex()).toInt(&okk);
-    Q_ASSERT(okk);
-    inf.FlowControl =  (QSerialPort::FlowControl)ui->comboHandsake->currentIndex();
-    Q_ASSERT(okk);
-}
 
 void QSerialPortWidget::closeComport()
 {
@@ -120,6 +106,108 @@ void QSerialPortWidget::enableWidget(bool b)
     ui->comboParity->setEnabled(b);
 }
 
+void QSerialPortWidget::setVisibleFlags(Visibility flags)
+{
+    vis = flags;
+
+    for (int i = 0 ; i < ui->formLayout->rowCount(); i++)
+    {
+        bool vis = flags.testFlag((Visible) (1 << i));
+
+        ui->formLayout->itemAt(i,QFormLayout::LabelRole)->widget()->setVisible(vis);
+        ui->formLayout->itemAt(i,QFormLayout::FieldRole)->widget()->setVisible(vis);
+    }
+
+    ui->checkAuto->setVisible(flags.testFlag(AutoOpen));
+}
+
+void QSerialPortWidget::SetDefaultValues()
+{
+    QString str = ui->comboPort->currentText();
+
+    Info.autoOpen = false;
+    Info.BaudRate = 19200;
+    Info.DataBits = QSerialPort::Data8;
+    Info.FlowControl = QSerialPort::NoFlowControl;
+    Info.Parity = QSerialPort::NoParity;
+    Info.Port = str;
+    Info.StopBits = QSerialPort::OneStop;
+    setWidget(Info);
+}
+
+/**
+ * @brief QSerialPortWidget::timeout
+ * autoscanning list of serial ports
+ */
+void QSerialPortWidget::timeout()
+{
+    QList<QSerialPortInfo> list = QSerialPortInfo::availablePorts();
+    QStringList lst;
+
+    foreach (QSerialPortInfo info, list) {
+        QString name = info.portName();
+        int i = ui->comboPort->findText(name);
+        lst << name;
+        if (i == -1)
+        {
+            ui->comboPort->addItem(name);
+        }
+    }
+
+    for (int i = 0 ; i < ui->comboPort->count(); i++)
+    {
+        if (!lst.contains(ui->comboPort->itemText(i)))
+            ui->comboPort->removeItem(i);
+    }
+}
+
+bool QSerialPortWidget::loadFile(Info_t &inf)
+{
+    return false;
+}
+
+/**
+ * @brief QSerialPortWidget::setWidget
+ * load setting from info structure to gui
+ * @param inf
+ */
+void QSerialPortWidget::setWidget(const Info_t &inf)
+{
+    setCombo(ui->comboBaud,inf.BaudRate);
+    setCombo(ui->comboDataBits,inf.DataBits);
+    setCombo(ui->comboPort,inf.Port,Qt::DisplayRole,false);
+    setCombo(ui->comboHandsake,inf.FlowControl,Qt::UserRole);
+    setCombo(ui->comboParity,inf.Parity,Qt::UserRole);
+    setCombo(ui->comboStopBits,inf.StopBits,Qt::UserRole);
+}
+
+/**
+ * @brief QSerialPortWidget::fillInfo
+ * fill param structure from gui
+ * @param inf
+ */
+void QSerialPortWidget::fillInfo(Info_t &inf)
+{
+    bool okk;
+
+    inf.BaudRate = readCombo(ui->comboBaud).toInt(&okk);
+    Q_ASSERT(okk);
+    inf.DataBits = (QSerialPort::DataBits)readCombo(ui->comboDataBits).toInt(&okk);
+    Q_ASSERT(okk);
+    inf.Parity =  (QSerialPort::Parity)readCombo(ui->comboParity,Qt::UserRole).toInt(&okk);
+    Q_ASSERT(okk);
+    inf.Port = readCombo(ui->comboPort).toString();
+    inf.StopBits = (QSerialPort::StopBits)readCombo(ui->comboStopBits,Qt::UserRole).toInt(&okk);
+    Q_ASSERT(okk);
+    inf.FlowControl = (QSerialPort::FlowControl)readCombo(ui->comboHandsake,Qt::UserRole).toInt(&okk);
+    Q_ASSERT(okk);
+    inf.autoOpen = ui->checkAuto->isChecked();
+}
+
+/**
+ * @brief QSerialPortWidget::fillCombos
+ * fill all comboboxes with all items and set their userrole
+ */
 void QSerialPortWidget::fillCombos()
 {
     //list combos
@@ -163,6 +251,10 @@ void QSerialPortWidget::fillCombos()
     shaking << tr("None") << tr("Hardware (RTS/CTS)") << tr("Software (Xon/Xoff)");
     ui->comboHandsake->clear();
     ui->comboHandsake->addItems(shaking);
+    for (int i =  0 ; i < ui->comboHandsake->count(); i++)
+    {
+        ui->comboHandsake->setItemData(i,i);
+    }
 
     //parity
     QStringList parity;
@@ -177,48 +269,45 @@ void QSerialPortWidget::fillCombos()
     }
 }
 
-void QSerialPortWidget::setVisibleFlags(Visibility flags)
+/**
+ * @brief QSerialPortWidget::readCombo
+ * return Qvariant role of current item in combobox
+ * @param combo
+ * @param role
+ * @return
+ */
+QVariant QSerialPortWidget::readCombo(QComboBox *combo, Qt::ItemDataRole role)
 {
-    vis = flags;
-
-    for (int i = 0 ; i < ui->formLayout->rowCount(); i++)
-    {
-        bool vis = flags.testFlag((Visible) (1 << i));
-
-        ui->formLayout->itemAt(i,QFormLayout::LabelRole)->widget()->setVisible(vis);
-        ui->formLayout->itemAt(i,QFormLayout::FieldRole)->widget()->setVisible(vis);
-    }
-
-    ui->checkAuto->setVisible(flags.testFlag(AutoOpen));
-}
-
-void QSerialPortWidget::SetDefaultValues()
-{
-    ui->comboBaud->setCurrentIndex(4);
-    ui->comboDataBits->setCurrentIndex(4);
-    ui->comboHandsake->setCurrentIndex(0);
-    ui->comboParity->setCurrentIndex(0);
-    ui->comboPort->setCurrentIndex(0);
-    ui->comboStopBits->setCurrentIndex(0);
+    return combo->itemData(combo->currentIndex(),role);
 }
 
 /**
- * @brief QSerialPortWidget::timeout
- * autoscanning list of serial ports
+ * @brief QSerialPortWidget::setCombo
+ * set combo current index according to data and role
+ * @param combo
+ * @param data
+ * @param role
+ * @param check
  */
-void QSerialPortWidget::timeout()
+void QSerialPortWidget::setCombo(QComboBox *combo, const QVariant &data,
+                                 Qt::ItemDataRole role, bool check)
 {
-    QList<QSerialPortInfo> list = QSerialPortInfo::availablePorts();
+    int i;
+    i = combo->findData(data,role);
+    if (check)
+        Q_ASSERT(i != -1);
 
-    foreach (QSerialPortInfo info, list) {
-        QString name = info.portName();
-        int i = ui->comboPort->findText(name);
-        if (i == -1)
-        {
-            ui->comboPort->addItem(name);
-        }
-    }
+    combo->setCurrentIndex(i);
+}
 
-
-
+void QSerialPortWidget::printSetting(const Info_t &info)
+{
+    qDebug() << "\n";
+    qDebug() << "Port " << info.Port;
+    qDebug() << "Rate " << info.BaudRate;
+    qDebug() << "Data bits " << info.DataBits;
+    qDebug() << "Stop bits " << info.StopBits;
+    qDebug() << "handshake " << info.FlowControl;
+    qDebug() << "parity " << info.Parity;
+    qDebug() << "\n";
 }

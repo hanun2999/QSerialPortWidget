@@ -8,6 +8,7 @@ namespace Ui {
 class QSerialPortWidget;
 }
 
+class QComboBox;
 class QSerialPortWidget : public QWidget
 {
     Q_OBJECT
@@ -32,19 +33,20 @@ public:
 
     typedef struct
     {
-        QString Port;
-        quint32 BaudRate;
-        QSerialPort::DataBits DataBits;
-        QSerialPort::StopBits StopBits;
-        QSerialPort::Parity Parity;
-        QSerialPort::FlowControl FlowControl;
+        QString Port;                   ///displayrole
+        quint32 BaudRate;               ///displayrole
+        QSerialPort::DataBits DataBits; ///displayrole
+        QSerialPort::StopBits StopBits; ///userrole
+        QSerialPort::Parity Parity;     ///userrole
+        QSerialPort::FlowControl FlowControl; ///userrole
+        bool autoOpen;
     }Info_t;
 
 
 public slots:
     void openComport(void);
     void closeComport(void);
-    void timeout(void);
+
 
 private:
     Ui::QSerialPortWidget *ui;
@@ -58,9 +60,16 @@ private:
     void enableWidget(bool enabled);
     void fillInfo(Info_t & inf);
     void setPort(const Info_t & inf);
+    bool loadFile(Info_t & inf);
+    void setWidget(const Info_t & inf);
+    static void setCombo(QComboBox * combo, const QVariant & data,
+                         Qt::ItemDataRole role = Qt::DisplayRole, bool check = true);
+    static QVariant readCombo(QComboBox * combo, Qt::ItemDataRole role = Qt::DisplayRole);
+    void printSetting(const Info_t & info);
 
 
-
+private slots:
+    void timeout(void);
 
 signals:
     void cannotOpenPort();
