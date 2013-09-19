@@ -5,12 +5,15 @@
 #include <QDebug>
 #include <QTreeWidgetItem>
 #include <QTimer>
+#include <QSettings>
+#include <QFile>
 
-QSerialPortWidget::QSerialPortWidget(QWidget *parent) :
+QSerialPortWidget::QSerialPortWidget(const QString & path,QWidget *parent) :
     QWidget(parent),
     ui(new Ui::QSerialPortWidget),
     vis(Port | BaudRate | DataBits | StopBits | Parity | AutoOpen),
-    timer(new QTimer(this))
+    timer(new QTimer(this)),
+    pth(path)
 {
     ui->setupUi(this);
 
@@ -37,8 +40,6 @@ QSerialPortWidget::QSerialPortWidget(QWidget *parent) :
 
     timer->start(1000);
     connect(timer,SIGNAL(timeout()),this,SLOT(timeout()));
-
-
 }
 
 QSerialPortWidget::~QSerialPortWidget()
@@ -65,6 +66,7 @@ void QSerialPortWidget::openComport()
     emit portOpened(true);
     emit portOpened(p);
     enableWidget(false);
+    saveFile(Info);
 }
 
 /**
@@ -102,7 +104,7 @@ void QSerialPortWidget::enableWidget(bool b)
     ui->comboPort->setEnabled(b);
     ui->comboStopBits->setEnabled(b);
     ui->butOpen->setEnabled(b);
-    ui->checkAuto->setEnabled(b);
+    //ui->checkAuto->setEnabled(b);
     ui->comboParity->setEnabled(b);
 }
 
@@ -159,11 +161,23 @@ void QSerialPortWidget::timeout()
         if (!lst.contains(ui->comboPort->itemText(i)))
             ui->comboPort->removeItem(i);
     }
+
+    Info_t in;
+    fillInfo(in);
+    if (!(Info == in))
+    {
+        Info = in;
+        saveFile(Info);
+    }
 }
 
-bool QSerialPortWidget::loadFile(Info_t &inf)
+bool QSerialPortWidget::setPortSetup(const Info_t &inf)
 {
-    return false;
+    if (p->isOpen())
+        return false;
+
+    setWidget(inf);
+    return true;
 }
 
 /**
@@ -179,6 +193,7 @@ void QSerialPortWidget::setWidget(const Info_t &inf)
     setCombo(ui->comboHandsake,inf.FlowControl,Qt::UserRole);
     setCombo(ui->comboParity,inf.Parity,Qt::UserRole);
     setCombo(ui->comboStopBits,inf.StopBits,Qt::UserRole);
+    ui->checkAuto->setChecked(inf.autoOpen);
 }
 
 /**
@@ -310,4 +325,35 @@ void QSerialPortWidget::printSetting(const Info_t &info)
     qDebug() << "handshake " << info.FlowControl;
     qDebug() << "parity " << info.Parity;
     qDebug() << "\n";
+}
+
+bool QSerialPortWidget::loadFile(Info_t &inf)
+{
+    QFile fil(pth);
+    if (!fil.exists())
+        return false;
+
+    QSettings s(pth,QSettings::IniFormat);
+
+    inf.autoOpen = s.value("com/autoOpen").toBool();
+    inf.BaudRate = s.value("com/baudRate").toInt();
+    inf.Port = s.value("com/port").toString();
+    inf.DataBits = (QSerialPort::DataBits) s.value("com/dataBits").toInt();
+    inf.StopBits = (QSerialPort::StopBits) s.value("com/stopBits").toInt();
+    inf.FlowControl = (QSerialPort::FlowControl)s.value("com/handshake").toInt();
+    inf.Parity = (QSerialPort::Parity) s.value("com/parity").toInt();
+
+    return true;
+}
+
+void QSerialPortWidget::saveFile(const Info_t &inf)
+{
+    QSettings s(pth,QSettings::IniFormat);
+    s.setValue("com/autoOpen",inf.autoOpen);
+    s.setValue("com/baudRate",inf.BaudRate);
+    s.setValue("com/port",inf.Port);
+    s.setValue("com/dataBits",inf.DataBits);
+    s.setValue("com/stopBits",inf.StopBits);
+    s.setValue("com/handshake",inf.FlowControl);
+    s.setValue("com/parity",inf.Parity);
 }

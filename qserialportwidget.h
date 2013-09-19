@@ -8,6 +8,7 @@ namespace Ui {
 class QSerialPortWidget;
 }
 
+class QDir;
 class QComboBox;
 class QSerialPortWidget : public QWidget
 {
@@ -15,7 +16,7 @@ class QSerialPortWidget : public QWidget
     Q_FLAGS(Visibility)
 
 public:
-    explicit QSerialPortWidget(QWidget *parent = 0);
+    explicit QSerialPortWidget(const QString & path = "comSetup.ini" ,  QWidget *parent = 0);
     ~QSerialPortWidget();
 
     inline QSerialPort * getPort() const {return p;}
@@ -31,7 +32,7 @@ public:
     };
     Q_DECLARE_FLAGS(Visibility, Visible)
 
-    typedef struct
+    typedef struct Info_t
     {
         QString Port;                   ///displayrole
         quint32 BaudRate;               ///displayrole
@@ -40,6 +41,21 @@ public:
         QSerialPort::Parity Parity;     ///userrole
         QSerialPort::FlowControl FlowControl; ///userrole
         bool autoOpen;
+
+        bool operator == (Info_t & other)
+        {
+            bool ok;
+            ok = Port == other.Port;
+            ok *= BaudRate == other.BaudRate;
+            ok *= DataBits == other.DataBits;
+            ok *= StopBits == other.StopBits;
+            ok *= Parity == other.Parity;
+            ok *= FlowControl == other.FlowControl;
+            ok *= autoOpen == other.autoOpen;
+
+
+            return ok;
+        }
     }Info_t;
 
 
@@ -54,6 +70,7 @@ private:
     Info_t Info;
     Visibility vis;
     QTimer * timer;
+    const QString pth;
 
     void fillCombos(void);
     void SetDefaultValues(void);
@@ -61,6 +78,7 @@ private:
     void fillInfo(Info_t & inf);
     void setPort(const Info_t & inf);
     bool loadFile(Info_t & inf);
+    void saveFile(const Info_t & inf);
     void setWidget(const Info_t & inf);
     static void setCombo(QComboBox * combo, const QVariant & data,
                          Qt::ItemDataRole role = Qt::DisplayRole, bool check = true);
@@ -80,6 +98,8 @@ public:
     //hide / show...
     void setVisibleFlags(Visibility flags);
     Visibility visibleFlags() const {return vis;}
+    bool setPortSetup(const Info_t & inf);
+    Info_t portSetup() const {return Info;}
 
     //set values before com port is opened
 };
